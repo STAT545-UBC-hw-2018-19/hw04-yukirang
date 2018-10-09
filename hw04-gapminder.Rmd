@@ -1,0 +1,206 @@
+---
+title: "Hw04-gapminder"
+output: github_document
+---
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(gapminder))
+suppressPackageStartupMessages(library(reshape2))
+```
+
+## Data Reshaping Prompts
+### Activty #2
+
+Here I'd like to make a tilble for yearly life expectancy for China, Japan and Canada, with the spread() function:
+```{r}
+lifeExp_sub <- gapminder %>%
+  select("lifeExp","country","year") %>% 
+  filter(country == "China" | country == "Canada" | country == "Japan")
+  
+  # using the spread() function to list the lifeExp with one row per year in three countries
+  spread(lifeExp_sub,key = "country", value = "lifeExp") %>% 
+  rename(lifeExp_Canada = "Canada", lifeExp_China = "China", lifeExp_Japan = "Japan") %>% 
+  # stylize and show the table 
+  knitr::kable(format = "html", caption = "lifeExp in three countries")
+```
+
+And plot the table above to show the lifeExp change in one graph:
+```{r}
+  ggplot(lifeExp_sub, aes(year,lifeExp)) +
+  geom_point(aes(colour=country))
+```
+
+### Activty #5 Simple data manipulations in R
+#### Group
+First select the columns to form a table I want to work on:
+```{r}
+gdpPCap <- gapminder %>%
+  select("gdpPercap","continent","country","year")
+knitr::kable(head(gdpPCap,20))
+```
+
+Then we can group it by year and continent, and take the mean of each year's gdpPercap:
+```{r}
+gdp_group <- gdpPCap %>% 
+  group_by(year,continent) %>% 
+  summarize(mean_gdpPercap=mean(gdpPercap),nCountries=n())
+knitr::kable(head(gdp_group,20))
+```
+
+#### SPLIT
+```{r}
+gdp_split <- gdp_group %>% 
+ spread(key = "year", value="mean_gdpPercap")
+knitr::kable(gdp_split)
+```
+
+#### STACK
+Or stack the table above, with a union column of continent and number of countries:
+```{r}
+gdp_stack <- gdp_split %>% 
+  unite(continent_n, continent, nCountries) %>% 
+  melt(id="continent_n") %>% 
+  arrange(continent_n)
+knitr::kable(head(gdp_stack,30))
+```
+
+#### JOIN
+```{r}
+A<-data.frame(c1=c("C","a","n","a","d","a"), c2=1:6)
+B <- data.frame(c1=c("C","h","i","n","a"), c3=c("o","p","q","r","s"))
+C <- left_join(A, B)
+A
+B
+knitr::kable(C)
+```
+
+#### SUBSET
+Let's make a subset of 'gdp_group': filter the values in 2007.
+```{r}
+gdp_2007 <- gdp_group %>% 
+  filter(year == 2007)
+knitr::kable(gdp_2007)
+```
+
+#### TRANSPOSE
+And transpose the table above:
+```{r}
+gdp_2007_t <- data.frame(t(gdp_2007))
+knitr::kable(gdp_2007_t)
+```
+
+### SORT
+Now sort the table "gdp_2007" by "nCountries"
+
+```{r}
+gdp_2007_s <- arrange(gdp_2007,nCountries)
+knitr::kable(gdp_2007_s)
+```
+
+
+
+## Join Prompts
+### Activty #2 Cheatsheet for dplyr join functions
+
+**Yuki Rang**
+
+#### The data
+One data frame is some kpop groups with their group name, number of members, company and representative song.
+Another data frame comes from the release year of the songs.
+```{r}
+kpopGroups <- "
+  group,      company, nMembers,repSong
+  EXO,         SM,      9,       Growl
+  BTS,         BigHit,  7,       Fake Love
+  BigBang,      YG,      5,       Fantastic Baby
+  GOT7,        JYP,     7,       Hard Carry
+  NCT127,      SM,      10,      Boss
+  Blackpink,   YG,      4,       Boombahya
+  Twice,       JYP,     9,       Cheer Up
+  Seventeen,   Pledis,  13,      Don't Wanna Cry
+  Red Velvet,  SM,      5,       Red Flavor 
+  Wanna One,   YMC,     11,      Energetic
+"
+kpopGroups <- read_csv(kpopGroups, skip = 1)
+
+releaseYear <- "
+  repSong, group, release
+  Gee,       Girls's Generation,     2009
+  Fantastic Baby, BigBang,  2012
+  Growl,      EXO,    2013
+  Heart Attack, AOA,  2015
+  Hard Carry,  GOT7,   2016
+  Boss,        NCT127,   2017
+  Fake Love, BTS,     2018
+"
+releaseYear <- read_csv(releaseYear, skip = 1)
+knitr::kable(kpopGroups)
+knitr::kable(releaseYear)
+```
+
+#### inner_join(kpopGroups,releaseYear)
+
+> 
+return all rows from x where there are matching values in y, and all columns from x and y. If there are multiple matches between x and y, all combination of the matches are returned.
+
+```{r}
+inner_join(kpopGroups,releaseYear,by='group') %>% 
+  knitr::kable()
+```
+
+Now we only have five groups listed, because *Wanna One* and so on don't show in the "releaseYear" table and *AOA* and *Girls's Generation* don't show in the "kpopGroups" table. While inner_join() would replicate the repSong column.
+
+#### semi_join(kpopGroups,releaseYear)
+> 
+return all rows from x where there are matching values in y, keeping just columns from x. A semi join differs from an inner join because an inner join will return one row of x for each matching row of y, where a semi join will never duplicate rows of x.
+
+```{r}
+semi_join(kpopGroups,releaseYear,by='group') %>% 
+  knitr::kable()
+```
+
+We still have five groups listed, while only the repSong from "kpopGroups" has been kept.
+
+#### left_join(kpopGroups,releaseYear)
+>
+left_join(x, y): Return all rows from x, and all columns from x and y. If there are multiple matches between x and y, all combination of the matches are returned. This is a mutating join.
+
+```{r}
+left_join(kpopGroups,releaseYear, by="group") %>% 
+  knitr::kable()
+```
+
+This time, we take all records from "kpopGroups"", and take the records in "releaseYear" with same group as in "kpopGroups", and combine them together.
+
+Similarly, the right_join()
+
+>return all rows from y, and all columns from x and y. Rows in y with no match in x will have NA values in the new columns. If there are multiple matches between x and y, all combinations of the matches are returned.
+
+```{r}
+right_join(kpopGroups,releaseYear, by="group") %>% 
+  knitr::kable()
+```
+
+
+#### anti_join(kpopGroups,releaseYear)
+>
+anti_join(x, y): Return all rows from x where there are not matching values in y, keeping just columns from x. This is a filtering join.
+
+```{r}
+anti_join(kpopGroups,releaseYear,by="group") %>% 
+  knitr::kable()
+```
+
+We keep only five groups in "kpopGroups" that don't show in "releaseYear".
+
+#### full_join(kpopGroups,releaseYear)
+
+> full_join(x, y): Return all rows and all columns from both x and y. Where there are not matching values, returns NA for the one missing. This is a mutating join.
+
+```{r}
+full_join(kpopGroups,releaseYear,by="group") %>% 
+  knitr::kable()
+```
+
+Now we have a full record of all the records from both groups.
